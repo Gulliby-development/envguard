@@ -90,6 +90,7 @@ Relative paths are resolved from the current working directory.
 | `--json` | Print JSON instead of the human-readable report |
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
+| `--allow-empty <KEY>` | Keys that may be empty; repeatable or comma-separated; `PREFIX*` matches by prefix |
 
 Positional file arguments are not supported; use `--env` and `--example`.
 
@@ -99,6 +100,37 @@ Positional file arguments are not supported; use `--env` and `--example`.
 - **Extra:** a key in `.env` that is absent from `.env.example`.
 - **Empty:** a key shared by both files whose `.env` value is empty or
   whitespace-only after unquoting. Template values are not checked for emptiness.
+
+For intentionally blank variables, allow selected keys to be empty. With
+this `.env.example`:
+
+```text
+A=
+SENTRY_DSN=
+```
+
+and this `.env`:
+
+```text
+A=1
+SENTRY_DSN=
+```
+
+running `envguard` prints:
+
+```text
+Environment problems found.
+Empty values (errors): SENTRY_DSN
+```
+
+It exits 1. Running `envguard --allow-empty SENTRY_DSN` with the same files
+prints:
+
+```text
+Success: required environment keys are present and non-empty.
+```
+
+and exits 0.
 
 Key lists are sorted alphabetically. Extra keys are warnings by default and
 errors with `--strict`. Human-readable output contains no ANSI colour codes and

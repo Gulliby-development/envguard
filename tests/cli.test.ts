@@ -212,7 +212,15 @@ describe("CLI", () => {
       const result = runCli([flag]);
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
-      for (const option of ["--env", "--example", "--strict", "--json", "--help", "--version"]) {
+      for (const option of [
+        "--env",
+        "--example",
+        "--strict",
+        "--allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*",
+        "--json",
+        "--help",
+        "--version",
+      ]) {
         expect(result.stdout).toContain(option);
       }
       expect(result.stdout).toMatch(/exit codes/i);
@@ -246,5 +254,91 @@ describe("CLI", () => {
       extra: ["EXTRA"],
       empty: ["EMPTY"],
     });
+  });
+
+  test("allows exact keys and whitespace-only values without affecting non-empty values", () => {
+    writeDefaults("A=   \nB=present\n", "A=required\nB=required\n");
+    const result = runCli(["--allow-empty", "A", "--json"]);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: true,
+      strict: false,
+      env: resolve(directory, ".env"),
+      example: resolve(directory, ".env.example"),
+      missing: [],
+      extra: [],
+      empty: [],
+    });
+  });
+
+  test("supports prefixes including the bare prefix, comma lists, repeats, and mixed forms", () => {
+    writeDefaults(
+      "FEATURE_=\nFEATURE_FLAG=\nA=\nB=\nC=\n",
+      "FEATURE_=required\nFEATURE_FLAG=required\nA=required\nB=required\nC=required\n",
+    );
+    const result = runCli([
+      "--allow-empty",
+      "FEATURE_*, A",
+      "--allow-empty=B",
+      "--allow-empty",
+      "C",
+    ]);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain(
+      "Success: required environment keys are present and non-empty.",
+    );
+  });
+
+  test("allowed keys remain missing and extra keys still fail in strict mode", () => {
+    writeDefaults("EXTRA=\n", "MISSING=required\n");
+    const missing = runCli(["--allow-empty", "MISSING", "--json"]);
+    expect(missing.status).toBe(1);
+    expect(JSON.parse(missing.stdout)).toMatchObject({ missing: ["MISSING"], empty: [] });
+
+    writeDefaults("EXTRA=\n", "");
+    const extra = runCli(["--allow-empty", "EXTRA", "--strict", "--json"]);
+    expect(extra.status).toBe(1);
+    expect(JSON.parse(extra.stdout)).toMatchObject({ missing: [], extra: ["EXTRA"], empty: [] });
+  });
+
+  test("allows patterns that match nothing and preserves empty reporting without the option", () => {
+    writeDefaults("A=\n", "A=required\n");
+    const allowed = runCli(["--allow-empty", "NO_MATCH_*", "--json"]);
+    expect(allowed.status).toBe(1);
+    expect(JSON.parse(allowed.stdout)).toMatchObject({ empty: ["A"] });
+
+    const unchanged = runCli(["--json"]);
+    expect(unchanged.status).toBe(1);
+    expect(JSON.parse(unchanged.stdout)).toMatchObject({ empty: ["A"] });
+  });
+
+  test.each(["", "A,,B", "*", "A*B", "1BAD", "BAD-KEY", "A B"])(
+    "rejects invalid --allow-empty value %j with the required diagnostic",
+    (value) => {
+      writeDefaults("A=1\n", "A=\n");
+      const result = runCli(["--allow-empty", value, "--json"]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(
+        "envguard: --allow-empty needs a key name or a prefix ending in *\n",
+      );
+    },
+  );
+
+  test("rejects an empty --allow-empty value using equals syntax", () => {
+    writeDefaults("A=1\n", "A=\n");
+    const result = runCli(["--allow-empty=", "--json"]);
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      "envguard: --allow-empty needs a key name or a prefix ending in *\n",
+    );
+  });
+
+  test("uses parseArgs' existing error path when --allow-empty has no value", () => {
+    writeDefaults("A=1\n", "A=\n");
+    expectUsageError(["--allow-empty"]);
   });
 });

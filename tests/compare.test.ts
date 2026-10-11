@@ -145,6 +145,65 @@ describe("compareEnv", () => {
     });
   });
 
+  test("suppresses allowed exact empty keys without affecting other values", () => {
+    const env = new Map([
+      ["SENTRY_DSN", " \t "],
+      ["REQUIRED", ""],
+      ["NON_EMPTY", "configured"],
+    ]);
+    const example = new Map([
+      ["SENTRY_DSN", ""],
+      ["REQUIRED", ""],
+      ["NON_EMPTY", ""],
+    ]);
+
+    expect(compareEnv(env, example, ["SENTRY_DSN"])).toEqual({
+      missing: [],
+      extra: [],
+      empty: ["REQUIRED"],
+    });
+  });
+
+  test("matches prefix patterns including the bare prefix key", () => {
+    const env = new Map([
+      ["FEATURE_", ""],
+      ["FEATURE_FLAG", " \t "],
+      ["feature_flag", ""],
+    ]);
+
+    expect(
+      compareEnv(env, new Map([...env].map(([key]) => [key, "sample"])), ["FEATURE_*"]),
+    ).toEqual({
+      missing: [],
+      extra: [],
+      empty: ["feature_flag"],
+    });
+  });
+
+  test("keeps allowed keys classified as missing or extra", () => {
+    expect(
+      compareEnv(new Map([["ALLOWED_EXTRA", ""]]), new Map([["ALLOWED_MISSING", ""]]), [
+        "ALLOWED_*",
+      ]),
+    ).toEqual({
+      missing: ["ALLOWED_MISSING"],
+      extra: ["ALLOWED_EXTRA"],
+      empty: [],
+    });
+  });
+
+  test("accepts patterns that match no keys", () => {
+    expect(
+      compareEnv(new Map([["REQUIRED", "configured"]]), new Map([["REQUIRED", "sample"]]), [
+        "UNUSED_*",
+      ]),
+    ).toEqual({
+      missing: [],
+      extra: [],
+      empty: [],
+    });
+  });
+
   test("leaves both input maps unchanged", () => {
     const env = new Map([
       ["Z", ""],
