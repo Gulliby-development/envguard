@@ -14,6 +14,7 @@ Options:
   --env <path>      Environment file (default: .env)
   --example <path>  Required keys file (default: .env.example)
   --strict          Treat extra keys as errors rather than warnings
+  --allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*
   --json            Print one JSON report
   --help, -h        Show this help
   --version, -v     Show the package version
@@ -34,11 +35,19 @@ function main(): number {
         env: { type: "string", default: ".env" },
         example: { type: "string", default: ".env.example" },
         strict: { type: "boolean", default: false },
+        "allow-empty": { type: "string", multiple: true },
         json: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
     });
+
+    const allowEmpty = (values["allow-empty"] ?? []).flatMap((value) =>
+      value.split(",").map((key) => key.trim()),
+    );
+    if (allowEmpty.some((key) => !/^[A-Za-z_][A-Za-z0-9_.]*\*?$/.test(key))) {
+      throw new Error("--allow-empty needs a key name or a prefix ending in *");
+    }
 
     if (values.help) {
       process.stdout.write(help);
@@ -59,7 +68,12 @@ function main(): number {
     const examplePath = resolve(values.example);
     const env = parseEnv(readFileSync(envPath, "utf8"));
     const example = parseEnv(readFileSync(examplePath, "utf8"));
-    const report = createReport(compareEnv(env, example), envPath, examplePath, values.strict);
+    const report = createReport(
+      compareEnv(env, example, allowEmpty),
+      envPath,
+      examplePath,
+      values.strict,
+    );
     const output = values.json ? formatJson(report) : formatHuman(report);
     process.stdout.write(`${output}\n`);
     return report.ok ? 0 : 1;

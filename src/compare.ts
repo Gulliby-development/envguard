@@ -8,6 +8,7 @@ export interface Comparison {
 export function compareEnv(
   env: ReadonlyMap<string, string>,
   example: ReadonlyMap<string, string>,
+  allowEmpty: readonly string[] = [],
 ): Comparison {
   const missing: string[] = [];
   const extra: string[] = [];
@@ -16,7 +17,12 @@ export function compareEnv(
   for (const key of example.keys()) {
     if (!env.has(key)) {
       missing.push(key);
-    } else if (env.get(key)?.trim() === "") {
+    } else if (
+      env.get(key)?.trim() === "" &&
+      !allowEmpty.some((allowed) =>
+        allowed.endsWith("*") ? key.startsWith(allowed.slice(0, -1)) : key === allowed,
+      )
+    ) {
       empty.push(key);
     }
   }

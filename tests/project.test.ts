@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { builtinModules } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
@@ -150,6 +151,42 @@ describe("project and documentation", () => {
     expect(build.status, build.stdout + build.stderr).toBe(0);
     expect(readProject("dist/cli.js").split(/\r?\n/)[0]).toBe("#!/usr/bin/env node");
 
+    const readme = readProject("README.md");
+    const problemOutput = "Environment problems found.\nEmpty values (errors): SENTRY_DSN";
+    const successOutput = "Success: required environment keys are present and non-empty.";
+    expect(readme).toContain("```text\n" + problemOutput + "\n```");
+    expect(readme).toContain("```text\n" + successOutput + "\n```");
+
+    const tempDir = mkdtempSync(join(tmpdir(), "envguard-project-test-"));
+    try {
+      const envPath = join(tempDir, ".env");
+      const examplePath = join(tempDir, ".env.example");
+      writeFileSync(envPath, "A=1\nSENTRY_DSN=\n");
+      writeFileSync(examplePath, "A=example\nSENTRY_DSN=example\n");
+      const args = [join(root, "dist", "cli.js"), "--env", envPath, "--example", examplePath];
+      const withoutAllow = spawnSync("node", args, {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 10_000,
+      });
+      expect(withoutAllow.error).toBeUndefined();
+      expect(withoutAllow.status).toBe(1);
+      expect(withoutAllow.stderr).toBe("");
+      expect(withoutAllow.stdout.trimEnd()).toBe(problemOutput);
+
+      const withAllow = spawnSync("node", [...args, "--allow-empty", "SENTRY_DSN"], {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 10_000,
+      });
+      expect(withAllow.error).toBeUndefined();
+      expect(withAllow.status).toBe(0);
+      expect(withAllow.stderr).toBe("");
+      expect(withAllow.stdout.trimEnd()).toBe(successOutput);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+
     for (const flag of ["--help", "--version"]) {
       const result = spawnSync("node", [join(root, "dist", "cli.js"), flag], {
         cwd: root,
@@ -164,6 +201,9 @@ describe("project and documentation", () => {
         expect(result.stdout.trim()).toBe(manifest.version);
       } else {
         expect(result.stdout).toMatch(/Usage: envguard/);
+        expect(result.stdout).toContain(
+          "--allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*",
+        );
         for (const option of ["--env", "--example", "--strict", "--json", "--help", "--version"]) {
           expect(result.stdout).toContain(option);
         }
