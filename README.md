@@ -91,6 +91,7 @@ Relative paths are resolved from the current working directory.
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
 | `--allow-empty <KEY>` | Keys that may be empty; repeatable or comma-separated; `PREFIX*` matches by prefix |
+| `--ignore-extra <KEY>` | Extra keys to leave out of the report; repeatable or comma-separated; `PREFIX*` matches by prefix |
 
 Positional file arguments are not supported; use `--env` and `--example`.
 
@@ -125,6 +126,44 @@ Empty values (errors): SENTRY_DSN
 
 It exits 1. Running `envguard --allow-empty SENTRY_DSN` with the same files
 prints:
+
+```text
+Success: required environment keys are present and non-empty.
+```
+
+and exits 0.
+
+To silence known extra keys such as CI variables or a time zone, use
+`--ignore-extra`. With this `.env.example`:
+
+```text
+A=
+```
+
+and this `.env`:
+
+```text
+A=1
+CI=true
+CI_JOB_ID=42
+TZ=UTC
+```
+
+running `envguard` prints:
+
+```text
+Success: required environment keys are present and non-empty.
+Extra keys (warnings): CI, CI_JOB_ID, TZ
+```
+
+It exits 0. With `--strict` the same extra keys are errors:
+
+```text
+Environment problems found.
+Extra keys (errors): CI, CI_JOB_ID, TZ
+```
+
+It exits 1. Running `envguard --strict --ignore-extra "CI*,TZ"` prints:
 
 ```text
 Success: required environment keys are present and non-empty.

@@ -341,4 +341,105 @@ describe("CLI", () => {
     writeDefaults("A=1\n", "A=\n");
     expectUsageError(["--allow-empty"]);
   });
+
+  describe("--ignore-extra", () => {
+    const successLine = "Success: required environment keys are present and non-empty.";
+    const ignoreMessage = "envguard: --ignore-extra needs a key name or a prefix ending in *\n";
+
+    beforeEach(() => {
+      writeDefaults("A=1\nCI=true\nCI_JOB_ID=42\nTZ=UTC\n", "A=\n");
+    });
+
+    test("reports all extras as warnings without the option", () => {
+      const result = runCli();
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(`${successLine}\nExtra keys (warnings): CI, CI_JOB_ID, TZ\n`);
+    });
+
+    test("reports all extras as errors with --strict", () => {
+      const result = runCli(["--strict"]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(
+        "Environment problems found.\nExtra keys (errors): CI, CI_JOB_ID, TZ\n",
+      );
+    });
+
+    test("ignoring all extras makes --strict succeed", () => {
+      const result = runCli(["--strict", "--ignore-extra", "CI*,TZ"]);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(`${successLine}\n`);
+    });
+
+    test("an exact key does not match other keys sharing its prefix", () => {
+      const result = runCli(["--ignore-extra", "CI"]);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(`${successLine}\nExtra keys (warnings): CI_JOB_ID, TZ\n`);
+    });
+
+    test("JSON output omits ignored extras", () => {
+      const result = runCli(["--json", "--ignore-extra", "CI", "--ignore-extra", "TZ"]);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      const report = JSON.parse(result.stdout);
+      expect(report.extra).toEqual(["CI_JOB_ID"]);
+      expect(report.ok).toBe(true);
+    });
+
+    test.each([
+      [["--ignore-extra", "CI", "--ignore-extra", "TZ"]],
+      [["--ignore-extra", "CI,TZ"]],
+      [["--ignore-extra", " CI , TZ "]],
+      [["--ignore-extra=CI", "--ignore-extra=TZ"]],
+      [["--ignore-extra=CI,TZ"]],
+    ])("equivalent form %j gives the same result", (args) => {
+      const result = runCli(args);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(`${successLine}\nExtra keys (warnings): CI_JOB_ID\n`);
+    });
+
+    test.each(["bad key", "1A", "A,,B", ""])("rejects invalid value %j", (value) => {
+      const result = runCli(["--ignore-extra", value]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(ignoreMessage);
+    });
+
+    test("rejects an empty value using equals syntax", () => {
+      const result = runCli(["--ignore-extra="]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(ignoreMessage);
+    });
+
+    test("validates before --help", () => {
+      const result = runCli(["--ignore-extra", "bad key", "--help"]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(ignoreMessage);
+    });
+
+    test("the --allow-empty message wins when both options are invalid", () => {
+      const result = runCli(["--ignore-extra", "bad key", "--allow-empty", "1A"]);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(
+        "envguard: --allow-empty needs a key name or a prefix ending in *\n",
+      );
+    });
+
+    test("uses parseArgs' existing error path when the option has no value", () => {
+      expectUsageError(["--ignore-extra"]);
+    });
+
+    test("help lists the option", () => {
+      const result = runCli(["--help"]);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("--ignore-extra <KEY>");
+    });
+  });
 });
