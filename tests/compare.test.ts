@@ -223,4 +223,91 @@ describe("compareEnv", () => {
     expect([...env]).toEqual(envBefore);
     expect([...example]).toEqual(exampleBefore);
   });
+
+  describe("ignoreExtra", () => {
+    const env = new Map([
+      ["A", "1"],
+      ["CI", "true"],
+      ["CI_JOB_ID", "42"],
+      ["TZ", "UTC"],
+    ]);
+    const example = new Map([["A", ""]]);
+
+    test("removes extras matching a prefix pattern, including the bare prefix key", () => {
+      expect(compareEnv(env, example, [], ["CI*"])).toEqual({
+        missing: [],
+        extra: ["TZ"],
+        empty: [],
+      });
+    });
+
+    test("removes only the exact key for a plain pattern", () => {
+      expect(compareEnv(env, example, [], ["CI"])).toEqual({
+        missing: [],
+        extra: ["CI_JOB_ID", "TZ"],
+        empty: [],
+      });
+    });
+
+    test("matches case-sensitively", () => {
+      expect(compareEnv(env, example, [], ["ci"]).extra).toEqual(["CI", "CI_JOB_ID", "TZ"]);
+      expect(compareEnv(env, example, [], ["ci*"]).extra).toEqual(["CI", "CI_JOB_ID", "TZ"]);
+    });
+
+    test("accepts patterns that match nothing", () => {
+      expect(compareEnv(env, example, [], ["NOPE", "NOPE_*"])).toEqual(compareEnv(env, example));
+    });
+
+    test("combines several patterns", () => {
+      expect(compareEnv(env, example, [], ["CI*", "TZ"]).extra).toEqual([]);
+    });
+
+    test("leaves missing and empty results unchanged", () => {
+      const e = new Map([
+        ["BLANK", " "],
+        ["CI", "true"],
+        ["X", "1"],
+      ]);
+      const ex = new Map([
+        ["BLANK", ""],
+        ["MISSING", ""],
+        ["X", ""],
+      ]);
+
+      expect(compareEnv(e, ex, [], ["CI*", "BLANK", "MISSING", "X"])).toEqual({
+        missing: ["MISSING"],
+        extra: [],
+        empty: ["BLANK"],
+      });
+    });
+
+    test("does not affect and is not affected by allowEmpty", () => {
+      const e = new Map([
+        ["BLANK", ""],
+        ["EXTRA_BLANK", ""],
+      ]);
+      const ex = new Map([["BLANK", ""]]);
+
+      expect(compareEnv(e, ex, ["BLANK"], [])).toEqual({
+        missing: [],
+        extra: ["EXTRA_BLANK"],
+        empty: [],
+      });
+      expect(compareEnv(e, ex, [], ["EXTRA_BLANK"])).toEqual({
+        missing: [],
+        extra: [],
+        empty: ["BLANK"],
+      });
+      expect(compareEnv(e, ex, ["EXTRA_BLANK"], ["BLANK"])).toEqual({
+        missing: [],
+        extra: ["EXTRA_BLANK"],
+        empty: ["BLANK"],
+      });
+      expect(compareEnv(e, ex, ["BLANK"], ["EXTRA_BLANK"])).toEqual({
+        missing: [],
+        extra: [],
+        empty: [],
+      });
+    });
+  });
 });

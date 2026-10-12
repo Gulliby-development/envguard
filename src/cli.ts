@@ -15,6 +15,7 @@ Options:
   --example <path>  Required keys file (default: .env.example)
   --strict          Treat extra keys as errors rather than warnings
   --allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*
+  --ignore-extra <KEY>  Extra keys to leave out of the report; repeatable, comma-separated, KEY or PREFIX*
   --json            Print one JSON report
   --help, -h        Show this help
   --version, -v     Show the package version
@@ -24,6 +25,14 @@ Exit codes:
   1  Missing keys, empty required values, or extra keys with --strict
   2  Usage or file IO error
 `;
+
+function parseKeyList(values: readonly string[] | undefined, optionName: string): string[] {
+  const keys = (values ?? []).flatMap((value) => value.split(",").map((key) => key.trim()));
+  if (keys.some((key) => !/^[A-Za-z_][A-Za-z0-9_.]*\*?$/.test(key))) {
+    throw new Error(`--${optionName} needs a key name or a prefix ending in *`);
+  }
+  return keys;
+}
 
 function main(): number {
   try {
@@ -36,18 +45,15 @@ function main(): number {
         example: { type: "string", default: ".env.example" },
         strict: { type: "boolean", default: false },
         "allow-empty": { type: "string", multiple: true },
+        "ignore-extra": { type: "string", multiple: true },
         json: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
     });
 
-    const allowEmpty = (values["allow-empty"] ?? []).flatMap((value) =>
-      value.split(",").map((key) => key.trim()),
-    );
-    if (allowEmpty.some((key) => !/^[A-Za-z_][A-Za-z0-9_.]*\*?$/.test(key))) {
-      throw new Error("--allow-empty needs a key name or a prefix ending in *");
-    }
+    const allowEmpty = parseKeyList(values["allow-empty"], "allow-empty");
+    const ignoreExtra = parseKeyList(values["ignore-extra"], "ignore-extra");
 
     if (values.help) {
       process.stdout.write(help);
@@ -69,7 +75,7 @@ function main(): number {
     const env = parseEnv(readFileSync(envPath, "utf8"));
     const example = parseEnv(readFileSync(examplePath, "utf8"));
     const report = createReport(
-      compareEnv(env, example, allowEmpty),
+      compareEnv(env, example, allowEmpty, ignoreExtra),
       envPath,
       examplePath,
       values.strict,
