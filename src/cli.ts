@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { compareEnv } from "./compare";
-import { createReport, formatHuman, formatJson } from "./format";
+import { createReport, formatGithub, formatHuman, formatJson } from "./format";
 import { parseEnv } from "./parse";
 
 const help = `Usage: envguard [options]
@@ -17,6 +17,7 @@ Options:
   --allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*
   --ignore-extra <KEY>  Extra keys to leave out of the report; repeatable, comma-separated, KEY or PREFIX*
   --json            Print one JSON report
+  --github          Print GitHub Actions annotations (::error and ::warning lines)
   --help, -h        Show this help
   --version, -v     Show the package version
 
@@ -47,6 +48,7 @@ function main(): number {
         "allow-empty": { type: "string", multiple: true },
         "ignore-extra": { type: "string", multiple: true },
         json: { type: "boolean", default: false },
+        github: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -54,6 +56,10 @@ function main(): number {
 
     const allowEmpty = parseKeyList(values["allow-empty"], "allow-empty");
     const ignoreExtra = parseKeyList(values["ignore-extra"], "ignore-extra");
+
+    if (values.json && values.github) {
+      throw new Error("--json and --github cannot be used together");
+    }
 
     if (values.help) {
       process.stdout.write(help);
@@ -80,8 +86,16 @@ function main(): number {
       examplePath,
       values.strict,
     );
-    const output = values.json ? formatJson(report) : formatHuman(report);
-    process.stdout.write(`${output}\n`);
+    const output = values.github
+      ? formatGithub(report, values.env, values.example)
+      : values.json
+        ? formatJson(report)
+        : formatHuman(report);
+    if (values.github) {
+      if (output !== "") process.stdout.write(`${output}\n`);
+    } else {
+      process.stdout.write(`${output}\n`);
+    }
     return report.ok ? 0 : 1;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
