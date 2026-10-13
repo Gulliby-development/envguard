@@ -88,6 +88,7 @@ Relative paths are resolved from the current working directory.
 | `--example <path>` | Template file; defaults to `.env.example` |
 | `--strict` | Fail on extra keys as well as missing or empty keys |
 | `--json` | Print JSON instead of the human-readable report |
+| `--github` | Print GitHub Actions annotations instead of the human-readable report; cannot be combined with `--json` |
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
 | `--allow-empty <KEY>` | Keys that may be empty; repeatable or comma-separated; `PREFIX*` matches by prefix |
@@ -199,6 +200,34 @@ Extra keys (warnings): D
 When everything is fine, envguard prints
 `Success: required environment keys are present and non-empty.` and exits 0.
 
+### GitHub Actions annotations
+
+In a GitHub Actions job, `--github` makes each problem an annotation on the run and pull request. For example, with this `.env.example`:
+
+```text
+A=
+B=
+C=
+```
+
+and this `.env`:
+
+```text
+A=1
+C=
+CI=true
+```
+
+`envguard --github` prints (exit 1):
+
+```text
+::error file=.env,title=envguard::Missing key B (required by .env.example)
+::error file=.env,title=envguard::Empty value for key C
+::warning file=.env,title=envguard::Extra key CI (not in .env.example)
+```
+
+Missing and empty keys are errors; extra keys are warnings, or errors with `--strict`. Annotation paths are exactly the paths given on the command line. Nothing is printed when there is nothing to report. `--json` and `--github` cannot be combined (exit 2).
+
 ### Exit codes
 
 | Code | Meaning |
@@ -208,7 +237,7 @@ When everything is fine, envguard prints
 | 2 | Usage or file IO error |
 
 Unknown options, missing option values, positional arguments and unreadable
-files produce a message on stderr and no stdout, including with `--json`.
+files produce a message on stderr and no stdout, including with `--json` and `--github`.
 
 ### Parsing and limits
 

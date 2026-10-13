@@ -218,6 +218,7 @@ describe("CLI", () => {
         "--strict",
         "--allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*",
         "--json",
+        "--github",
         "--help",
         "--version",
       ]) {
