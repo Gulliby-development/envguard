@@ -5,16 +5,35 @@
 export function parseEnv(text: string): Map<string, string> {
   const entries = new Map<string, string>();
 
+  for (const assignment of parseAssignments(text)) {
+    entries.set(assignment.key, assignment.value);
+  }
+
+  return entries;
+}
+
+export function findDuplicateKeys(text: string): string[] {
+  const counts = new Map<string, number>();
+
+  for (const assignment of parseAssignments(text)) {
+    counts.set(assignment.key, (counts.get(assignment.key) ?? 0) + 1);
+  }
+
+  return [...counts]
+    .filter(([, count]) => count > 1)
+    .map(([key]) => key)
+    .sort();
+}
+
+function* parseAssignments(text: string): Generator<{ key: string; value: string }> {
   for (const line of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
     const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_.]*)\s*=(.*)$/.exec(line);
     if (!match) continue;
 
     const [, key, raw] = match;
     const value = parseValue(raw);
-    if (value !== undefined) entries.set(key, value);
+    if (value !== undefined) yield { key, value };
   }
-
-  return entries;
 }
 
 function parseValue(raw: string): string | undefined {

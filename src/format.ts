@@ -5,6 +5,7 @@ export interface Report extends Comparison {
   strict: boolean;
   env: string;
   example: string;
+  duplicate?: string[];
 }
 
 /** Copy and sort the lists so report creation never mutates its input. */
@@ -13,16 +14,22 @@ export function createReport(
   env: string,
   example: string,
   strict = false,
+  duplicate?: readonly string[],
 ): Report {
   const { missing, extra, empty } = comparison;
+  const duplicateKeys = duplicate === undefined ? undefined : [...duplicate].sort();
   return {
-    ok: missing.length === 0 && empty.length === 0 && (!strict || extra.length === 0),
+    ok:
+      missing.length === 0 &&
+      empty.length === 0 &&
+      (!strict || (extra.length === 0 && (duplicateKeys?.length ?? 0) === 0)),
     strict,
     env,
     example,
     missing: [...missing].sort(),
     extra: [...extra].sort(),
     empty: [...empty].sort(),
+    ...(duplicateKeys === undefined ? {} : { duplicate: duplicateKeys }),
   };
 }
 
@@ -59,6 +66,10 @@ export function formatGithub(report: Report, envPath: string, examplePath: strin
       (key) =>
         `::${report.strict ? "error" : "warning"} file=${file},title=envguard::Extra key ${key} (not in ${escapedExample})`,
     ),
+    ...(report.duplicate ?? []).map(
+      (key) =>
+        `::${report.strict ? "error" : "warning"} file=${file},title=envguard::Duplicate key ${key} (assigned more than once)`,
+    ),
   ];
   return lines.join("\n");
 }
@@ -78,6 +89,11 @@ export function formatHuman(report: Report): string {
   }
   if (report.extra.length > 0) {
     lines.push(`Extra keys (${report.strict ? "errors" : "warnings"}): ${report.extra.join(", ")}`);
+  }
+  if (report.duplicate && report.duplicate.length > 0) {
+    lines.push(
+      `Duplicate keys (${report.strict ? "errors" : "warnings"}): ${report.duplicate.join(", ")}`,
+    );
   }
   return lines.join("\n");
 }

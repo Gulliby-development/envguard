@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { compareEnv } from "./compare";
 import { createReport, formatGithub, formatHuman, formatJson } from "./format";
-import { parseEnv } from "./parse";
+import { findDuplicateKeys, parseEnv } from "./parse";
 
 const help = `Usage: envguard [options]
 
@@ -16,6 +16,7 @@ Options:
   --strict          Treat extra keys as errors rather than warnings
   --allow-empty <KEY>  Keys allowed to be empty; repeatable, comma-separated, KEY or PREFIX*
   --ignore-extra <KEY>  Extra keys to leave out of the report; repeatable, comma-separated, KEY or PREFIX*
+  --duplicates      Report keys assigned more than once in the env file
   --json            Print one JSON report
   --github          Print GitHub Actions annotations (::error and ::warning lines)
   --help, -h        Show this help
@@ -49,6 +50,7 @@ function main(): number {
         "ignore-extra": { type: "string", multiple: true },
         json: { type: "boolean", default: false },
         github: { type: "boolean", default: false },
+        duplicates: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -78,13 +80,15 @@ function main(): number {
 
     const envPath = resolve(values.env);
     const examplePath = resolve(values.example);
-    const env = parseEnv(readFileSync(envPath, "utf8"));
+    const envText = readFileSync(envPath, "utf8");
+    const env = parseEnv(envText);
     const example = parseEnv(readFileSync(examplePath, "utf8"));
     const report = createReport(
       compareEnv(env, example, allowEmpty, ignoreExtra),
       envPath,
       examplePath,
       values.strict,
+      values.duplicates ? findDuplicateKeys(envText) : undefined,
     );
     const output = values.github
       ? formatGithub(report, values.env, values.example)

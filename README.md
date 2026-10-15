@@ -89,6 +89,7 @@ Relative paths are resolved from the current working directory.
 | `--strict` | Fail on extra keys as well as missing or empty keys |
 | `--json` | Print JSON instead of the human-readable report |
 | `--github` | Print GitHub Actions annotations instead of the human-readable report; cannot be combined with `--json` |
+| `--duplicates` | Also report keys that `.env` assigns more than once (warnings, errors with `--strict`) |
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
 | `--allow-empty <KEY>` | Keys that may be empty; repeatable or comma-separated; `PREFIX*` matches by prefix |
@@ -199,6 +200,32 @@ Extra keys (warnings): D
 
 When everything is fine, envguard prints
 `Success: required environment keys are present and non-empty.` and exits 0.
+
+### Duplicate keys
+
+A key assigned twice in `.env` silently uses the last value. With `--duplicates`, envguard also lists such keys. With this `.env.example`:
+
+```text
+A=
+```
+
+and this `.env`:
+
+```text
+A=1
+B=2
+A=3
+```
+
+`envguard --duplicates` prints:
+
+```text
+Success: required environment keys are present and non-empty.
+Extra keys (warnings): B
+Duplicate keys (warnings): A
+```
+
+and exits 0; with `--strict` both lists are errors and the exit code is 1. Only assignments that envguard recognizes count, `export A=1` and `A=1` are the same key, and the template file is not checked. `--json` then adds a last field `"duplicate":["A"]` (always present with `--duplicates`, possibly empty); `--github` adds one line per key, `::warning file=.env,title=envguard::Duplicate key A (assigned more than once)` (`::error` with `--strict`). `--ignore-extra` does not affect duplicates. Without `--duplicates` nothing changes.
 
 ### GitHub Actions annotations
 
