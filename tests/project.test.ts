@@ -24,13 +24,16 @@ describe("project and documentation", () => {
   test("declares the CLI entry, development scripts and MIT license", () => {
     expect(manifest.name).toBe("envguard");
     expect(manifest.bin.envguard).toBe("dist/cli.js");
+    expect(manifest.bin["envguard-ci"]).toBe("dist/ci.js");
     expect(manifest.license).toBe("MIT");
     for (const script of ["typecheck", "lint", "test", "build"]) {
       expect(typeof manifest.scripts[script]).toBe("string");
       expect(manifest.scripts[script].trim().length).toBeGreaterThan(0);
     }
     expect(manifest.scripts.test).toBe("bun test");
-    expect(manifest.scripts.build).toBe("bun build src/cli.ts --outfile dist/cli.js --target node");
+    expect(manifest.scripts.build).toBe(
+      "bun build src/cli.ts src/ci.ts --outdir dist --target node",
+    );
     // Development tooling must not become a runtime installation requirement.
     for (const dependencies of [
       manifest.dependencies,

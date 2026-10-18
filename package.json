@@ -5,13 +5,14 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "envguard": "dist/cli.js"
+    "envguard": "dist/cli.js",
+    "envguard-ci": "dist/ci.js"
   },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "build": "bun build src/cli.ts --outfile dist/cli.js --target node"
+    "build": "bun build src/cli.ts src/ci.ts --outdir dist --target node"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
