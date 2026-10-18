@@ -255,6 +255,12 @@ CI=true
 
 Missing and empty keys are errors; extra keys are warnings, or errors with `--strict`. Annotation paths are exactly the paths given on the command line. Nothing is printed when there is nothing to report. `--json` and `--github` cannot be combined (exit 2).
 
+### CI command
+
+`envguard-ci` is equivalent to `envguard --github --strict`. It accepts envguard's other options and has the same exit codes. As with `--github`, `--json` is rejected.
+
+After `bun run build`, run it with `node dist/ci.js`, or run `envguard-ci` after linking the checkout with `npm link`.
+
 ### Exit codes
 
 | Code | Meaning |
