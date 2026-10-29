@@ -19,6 +19,7 @@ Options:
   --duplicates      Report keys assigned more than once in the env file
   --json            Print one JSON report
   --github          Print GitHub Actions annotations (::error and ::warning lines)
+  --quiet, -q       Leave out the success line of the human report
   --help, -h        Show this help
   --version, -v     Show the package version
 
@@ -50,6 +51,7 @@ function main(): number {
         "ignore-extra": { type: "string", multiple: true },
         json: { type: "boolean", default: false },
         github: { type: "boolean", default: false },
+        quiet: { type: "boolean", short: "q", default: false },
         duplicates: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
@@ -61,6 +63,9 @@ function main(): number {
 
     if (values.json && values.github) {
       throw new Error("--json and --github cannot be used together");
+    }
+    if (values.json && values.quiet) {
+      throw new Error("--json and --quiet cannot be used together");
     }
 
     if (values.help) {
@@ -94,12 +99,8 @@ function main(): number {
       ? formatGithub(report, values.env, values.example)
       : values.json
         ? formatJson(report)
-        : formatHuman(report);
-    if (values.github) {
-      if (output !== "") process.stdout.write(`${output}\n`);
-    } else {
-      process.stdout.write(`${output}\n`);
-    }
+        : formatHuman(report, values.quiet);
+    if (output !== "") process.stdout.write(`${output}\n`);
     return report.ok ? 0 : 1;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

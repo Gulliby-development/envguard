@@ -89,6 +89,7 @@ Relative paths are resolved from the current working directory.
 | `--strict` | Fail on extra keys as well as missing or empty keys |
 | `--json` | Print JSON instead of the human-readable report |
 | `--github` | Print GitHub Actions annotations instead of the human-readable report; cannot be combined with `--json` |
+| `--quiet`, `-q` | Leave out the success line of the human report; problems and warnings are printed as usual |
 | `--duplicates` | Also report keys that `.env` assigns more than once (warnings, errors with `--strict`) |
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
@@ -175,7 +176,7 @@ and exits 0.
 
 Key lists are sorted alphabetically. Extra keys are warnings by default and
 errors with `--strict`. Human-readable output contains no ANSI colour codes and
-includes a success line when the check passes.
+includes a success line when the check passes (see `--quiet`).
 
 For example, with `A=1`, `C=` and `D=4` in `.env`, and keys `A`, `B` and
 `C` in `.env.example`, `--json` produces:
@@ -200,6 +201,8 @@ Extra keys (warnings): D
 
 When everything is fine, envguard prints
 `Success: required environment keys are present and non-empty.` and exits 0.
+
+With `--quiet` (or `-q`) that success line is left out, so a clean run prints nothing and exits 0; warnings such as extra keys and every error report are printed exactly as before. In a shell script this reads as `envguard -q || echo "fix your .env"`. `--quiet` has no effect on `--github`, which already prints nothing for a clean run, and it cannot be combined with `--json` (exit 2, message on stderr).
 
 ### Duplicate keys
 

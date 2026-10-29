@@ -75,12 +75,13 @@ export function formatGithub(report: Report, envPath: string, examplePath: strin
 }
 
 /** Reports expose key names, never environment values. */
-export function formatHuman(report: Report): string {
+export function formatHuman(report: Report, quiet = false): string {
   const lines = [
     report.ok
       ? "Success: required environment keys are present and non-empty."
       : "Environment problems found.",
   ];
+  if (quiet && report.ok) lines.shift();
   if (report.missing.length > 0) {
     lines.push(`Missing keys (errors): ${report.missing.join(", ")}`);
   }
