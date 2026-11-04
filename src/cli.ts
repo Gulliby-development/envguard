@@ -20,6 +20,7 @@ Options:
   --json            Print one JSON report
   --github          Print GitHub Actions annotations (::error and ::warning lines)
   --quiet, -q       Leave out the success line of the human report
+  --summary         Add a last line with the number of missing, empty and extra keys
   --help, -h        Show this help
   --version, -v     Show the package version
 
@@ -52,6 +53,7 @@ function main(): number {
         json: { type: "boolean", default: false },
         github: { type: "boolean", default: false },
         quiet: { type: "boolean", short: "q", default: false },
+        summary: { type: "boolean", default: false },
         duplicates: { type: "boolean", default: false },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
@@ -66,6 +68,12 @@ function main(): number {
     }
     if (values.json && values.quiet) {
       throw new Error("--json and --quiet cannot be used together");
+    }
+    if (values.summary && values.json) {
+      throw new Error("--summary and --json cannot be used together");
+    }
+    if (values.summary && values.github) {
+      throw new Error("--summary and --github cannot be used together");
     }
 
     if (values.help) {
@@ -99,7 +107,7 @@ function main(): number {
       ? formatGithub(report, values.env, values.example)
       : values.json
         ? formatJson(report)
-        : formatHuman(report, values.quiet);
+        : formatHuman(report, values.quiet, values.summary);
     if (output !== "") process.stdout.write(`${output}\n`);
     return report.ok ? 0 : 1;
   } catch (error) {
