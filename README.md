@@ -90,6 +90,7 @@ Relative paths are resolved from the current working directory.
 | `--json` | Print JSON instead of the human-readable report |
 | `--github` | Print GitHub Actions annotations instead of the human-readable report; cannot be combined with `--json` |
 | `--quiet`, `-q` | Leave out the success line of the human report; problems and warnings are printed as usual |
+| `--summary` | Add a last line to the human report with the number of missing, empty and extra keys (and duplicate keys with `--duplicates`); cannot be combined with `--json` or `--github` |
 | `--duplicates` | Also report keys that `.env` assigns more than once (warnings, errors with `--strict`) |
 | `--help`, `-h` | Show usage and exit successfully |
 | `--version`, `-v` | Show the package version and exit successfully |
@@ -203,6 +204,10 @@ When everything is fine, envguard prints
 `Success: required environment keys are present and non-empty.` and exits 0.
 
 With `--quiet` (or `-q`) that success line is left out, so a clean run prints nothing and exits 0; warnings such as extra keys and every error report are printed exactly as before. In a shell script this reads as `envguard -q || echo "fix your .env"`. `--quiet` has no effect on `--github`, which already prints nothing for a clean run, and it cannot be combined with `--json` (exit 2, message on stderr).
+
+### Summary line
+
+With `--summary`, the human report gets one more last line, `Summary: 1 missing, 1 empty, 2 extra`, which counts the keys of the three lists as the report shows them (after `--allow-empty` and `--ignore-extra`). With `--duplicates` the line ends with `, 1 duplicate`. The line is also printed when the check passes (`Summary: 0 missing, 0 empty, 0 extra`), and `--quiet` leaves out only the success line, not the summary. `--summary` cannot be combined with `--json` or `--github`: the error is `envguard: --summary and --json cannot be used together` (or `--github`), exit 2.
 
 ### Duplicate keys
 

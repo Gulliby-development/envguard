@@ -74,8 +74,19 @@ export function formatGithub(report: Report, envPath: string, examplePath: strin
   return lines.join("\n");
 }
 
+/** One line with the size of each list; the duplicate count appears only when duplicates were checked. */
+export function formatSummary(report: Report): string {
+  const counts = [
+    `${report.missing.length} missing`,
+    `${report.empty.length} empty`,
+    `${report.extra.length} extra`,
+  ];
+  if (report.duplicate !== undefined) counts.push(`${report.duplicate.length} duplicate`);
+  return `Summary: ${counts.join(", ")}`;
+}
+
 /** Reports expose key names, never environment values. */
-export function formatHuman(report: Report, quiet = false): string {
+export function formatHuman(report: Report, quiet = false, summary = false): string {
   const lines = [
     report.ok
       ? "Success: required environment keys are present and non-empty."
@@ -96,5 +107,6 @@ export function formatHuman(report: Report, quiet = false): string {
       `Duplicate keys (${report.strict ? "errors" : "warnings"}): ${report.duplicate.join(", ")}`,
     );
   }
+  if (summary) lines.push(formatSummary(report));
   return lines.join("\n");
 }
